@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node/npm/next (Generic/Global match)
+node_modules/
+.next/
+out/
+.vercel
+*.tsbuildinfo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Machine learning model artifacts (optional but recommended if models are large/re-trainable)
+# backend/app/models/*.joblib
