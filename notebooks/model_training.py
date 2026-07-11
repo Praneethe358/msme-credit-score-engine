@@ -12,12 +12,11 @@ in the FastAPI scoring service (Phase 5).
 """
 
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report
+    confusion_matrix
 )
 from xgboost import XGBClassifier
 import joblib
@@ -29,16 +28,23 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 MODEL_DIR = os.path.join(BASE_DIR, "model")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# ---------- 1. Load features and health profiles to generate proxy labels ----------
+# ---------- 1. Load features and health profiles for proxy labels ----------
 features_df = pd.read_csv(os.path.join(DATA_DIR, "features.csv"))
-health_df = pd.read_csv(os.path.join(DATA_DIR, "_shops_with_health_profile.csv"))
+health_path = os.path.join(DATA_DIR, "_shops_with_health_profile.csv")
+health_df = pd.read_csv(health_path)
 
 # Merge on shop_id
-df = pd.merge(features_df, health_df[["shop_id", "_health_profile"]], on="shop_id")
+df = pd.merge(
+    features_df,
+    health_df[["shop_id", "_health_profile"]],
+    on="shop_id"
+)
 
 # Apply proxy labeling rule:
-# 1 (creditworthy) if strong health profile OR average health profile with gst_compliance_rate >= 0.85 and payment_collection_ratio >= 0.90
-# 0 (not creditworthy) otherwise (weak health profile, or average health profile that does not meet the criteria)
+# 1 (creditworthy) if strong health profile OR average health profile with
+# gst_compliance_rate >= 0.85 and payment_collection_ratio >= 0.90.
+# 0 (not creditworthy) otherwise (weak health profile, or average health
+# profile that does not meet the criteria).
 df["credit_label"] = df.apply(
     lambda row: 1 if row["_health_profile"] == "strong" or (
         row["_health_profile"] == "average"
@@ -86,11 +92,19 @@ def evaluate(name, model, X_test, y_test):
     print(f"Recall:    {rec:.3f}")
     print(f"F1 Score:  {f1:.3f}")
     print(f"Confusion Matrix:\n{cm}\n")
-    return {"model": name, "accuracy": acc, "precision": prec, "recall": rec, "f1": f1}
+    return {
+        "model": name,
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1
+    }
 
 
 # ---------- Model 1: Random Forest (baseline) ----------
-rf_model = RandomForestClassifier(n_estimators=200, max_depth=5, random_state=42)
+rf_model = RandomForestClassifier(
+    n_estimators=200, max_depth=5, random_state=42
+)
 rf_model.fit(X_train, y_train)
 rf_results = evaluate("Random Forest (baseline)", rf_model, X_test, y_test)
 
