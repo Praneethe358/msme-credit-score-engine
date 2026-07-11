@@ -30,7 +30,9 @@ Faker.seed(42)
 random.seed(42)
 np.random.seed(42)
 
-OUTPUT_DIR = "/home/claude/msme-credit-score/data"
+import os
+
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 NUM_SHOPS = 18
 HISTORY_MONTHS = 9          # each shop gets 6-12 months, avg 9
 SIM_END_DATE = pd.Timestamp("2026-07-01")
