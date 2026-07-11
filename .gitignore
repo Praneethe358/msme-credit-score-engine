@@ -40,3 +40,7 @@ Thumbs.db
 
 # Machine learning model artifacts (optional but recommended if models are large/re-trainable)
 # backend/app/models/*.joblib
+
+# CSV datasets and data exports
+data/*.csv
+*.csv
