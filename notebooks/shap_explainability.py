@@ -39,7 +39,8 @@ shap_values = explainer.shap_values(X)
 
 # SHAP's output shape varies by version:
 #   - older shap: list of 2 arrays, one per class -> shap_values[1]
-#   - newer shap: single array shaped (samples, features, classes) -> shap_values[:, :, 1]
+#   - newer shap: single array shaped (samples, features, classes)
+#     -> shap_values[:, :, 1]
 # We care about class 1 ("creditworthy") contributions either way.
 if isinstance(shap_values, list):
     shap_values_class1 = shap_values[1]
@@ -53,18 +54,25 @@ else:
 
 # ---------- Global summary plot ----------
 plt.figure()
-shap.summary_plot(shap_values_class1, X, feature_names=FEATURE_COLS, show=False)
+shap.summary_plot(
+    shap_values_class1, X, feature_names=FEATURE_COLS, show=False
+)
 plt.tight_layout()
-plt.savefig(os.path.join(DOCS_DIR, "shap_summary.png"), dpi=150, bbox_inches="tight")
+plt.savefig(
+    os.path.join(DOCS_DIR, "shap_summary.png"),
+    dpi=150,
+    bbox_inches="tight"
+)
 plt.close()
-print(f"Saved global summary plot -> {os.path.join(DOCS_DIR, 'shap_summary.png')}")
+summary_path = os.path.join(DOCS_DIR, "shap_summary.png")
+print(f"Saved global summary plot -> {summary_path}")
 
 # Calculate proxy_credit_score based on prediction probability
 # Mapping probability (0.0 to 1.0) to credit score range (300 to 900)
 probabilities = model.predict_proba(X)[:, 1]
 df["proxy_credit_score"] = 300 + probabilities * 600
 
-# ---------- Per-shop waterfall: pick one strong shop and one weak shop ----------
+# ---------- Per-shop waterfall: pick strong and weak shop ----------
 example_shops = {
     "strongest": df.loc[df["proxy_credit_score"].idxmax(), "shop_id"],
     "weakest": df.loc[df["proxy_credit_score"].idxmin(), "shop_id"],

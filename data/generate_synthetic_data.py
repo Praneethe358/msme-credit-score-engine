@@ -18,26 +18,27 @@ Output files (in /data):
   - gst_filings.csv
 """
 
+import os
+import random
 import numpy as np
 import pandas as pd
 from faker import Faker
 from datetime import timedelta
-import random
-import uuid
 
 fake = Faker("en_IN")
 Faker.seed(42)
 random.seed(42)
 np.random.seed(42)
 
-import os
-
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 NUM_SHOPS = 18
 HISTORY_MONTHS = 9          # each shop gets 6-12 months, avg 9
 SIM_END_DATE = pd.Timestamp("2026-07-01")
 
-SHOP_TYPES = ["Textile Retail", "Footwear Retail", "Textile Wholesale", "Footwear Wholesale"]
+SHOP_TYPES = [
+    "Textile Retail", "Footwear Retail",
+    "Textile Wholesale", "Footwear Wholesale"
+]
 CITIES = ["Tiruppur", "Coimbatore", "Erode", "Karur"]
 
 # Health profile controls behavior distributions.
@@ -45,12 +46,21 @@ CITIES = ["Tiruppur", "Coimbatore", "Erode", "Karur"]
 # average -> moderate variance, occasional late payments
 # weak    -> volatile revenue, slow collections, poor GST compliance
 HEALTH_PROFILES = {
-    "strong":  {"weight": 0.30, "revenue_cv": 0.10, "late_payment_rate": 0.05,
-                "avg_collection_days": 3,  "gst_ontime_rate": 0.95, "repeat_customer_rate": 0.65},
-    "average": {"weight": 0.45, "revenue_cv": 0.25, "late_payment_rate": 0.20,
-                "avg_collection_days": 10, "gst_ontime_rate": 0.75, "repeat_customer_rate": 0.40},
-    "weak":    {"weight": 0.25, "revenue_cv": 0.45, "late_payment_rate": 0.45,
-                "avg_collection_days": 25, "gst_ontime_rate": 0.45, "repeat_customer_rate": 0.20},
+    "strong": {
+        "weight": 0.30, "revenue_cv": 0.10, "late_payment_rate": 0.05,
+        "avg_collection_days": 3, "gst_ontime_rate": 0.95,
+        "repeat_customer_rate": 0.65
+    },
+    "average": {
+        "weight": 0.45, "revenue_cv": 0.25, "late_payment_rate": 0.20,
+        "avg_collection_days": 10, "gst_ontime_rate": 0.75,
+        "repeat_customer_rate": 0.40
+    },
+    "weak": {
+        "weight": 0.25, "revenue_cv": 0.45, "late_payment_rate": 0.45,
+        "avg_collection_days": 25, "gst_ontime_rate": 0.45,
+        "repeat_customer_rate": 0.20
+    },
 }
 
 
@@ -66,15 +76,20 @@ def generate_shops():
         shop_id = f"SHOP{i:03d}"
         health = pick_health_profile()
         months_active = random.randint(6, 12)
+        shop_name_suffix = random.choice(
+            ['Textiles', 'Footwear', 'Garments', 'Shoe Mart', 'Fashions']
+        )
+        onboarded = (SIM_END_DATE - timedelta(days=months_active * 30)).date()
         shops.append({
             "shop_id": shop_id,
-            "shop_name": f"{fake.last_name()} {random.choice(['Textiles', 'Footwear', 'Garments', 'Shoe Mart', 'Fashions'])}",
+            "shop_name": f"{fake.last_name()} {shop_name_suffix}",
             "shop_type": random.choice(SHOP_TYPES),
             "city": random.choice(CITIES),
             "gst_registered": True,
-            "onboarded_date": (SIM_END_DATE - timedelta(days=months_active * 30)).date(),
+            "onboarded_date": onboarded,
             "months_active": months_active,
-            "_health_profile": health,  # hidden — used only for label generation, not a feature
+            # hidden — used only for label generation, not a feature:
+            "_health_profile": health,
         })
     return pd.DataFrame(shops)
 
@@ -101,7 +116,9 @@ def generate_invoices(shops_df, customers_df):
 
     for _, shop in shops_df.iterrows():
         profile = HEALTH_PROFILES[shop["_health_profile"]]
-        shop_customers = customers_df[customers_df["shop_id"] == shop["shop_id"]]
+        shop_customers = customers_df[
+            customers_df["shop_id"] == shop["shop_id"]
+        ]
         months_active = shop["months_active"]
         start_date = SIM_END_DATE - timedelta(days=months_active * 30)
 
@@ -115,22 +132,30 @@ def generate_invoices(shops_df, customers_df):
             month_num = (month_start.month)
             seasonal_factor = 1.35 if month_num in [10, 11, 12] else 1.0
 
-            # revenue for the month with configured variance (coefficient of variation)
+            # revenue with configured variance (coefficient of variation)
             month_revenue = max(
                 10000,
-                np.random.normal(base_monthly_revenue * seasonal_factor,
-                                  base_monthly_revenue * profile["revenue_cv"])
+                np.random.normal(
+                    base_monthly_revenue * seasonal_factor,
+                    base_monthly_revenue * profile["revenue_cv"]
+                )
             )
 
             num_invoices_this_month = random.randint(15, 45)
             avg_invoice_value = month_revenue / num_invoices_this_month
 
             for _ in range(num_invoices_this_month):
-                invoice_date = month_start + timedelta(days=random.randint(0, 29))
+                invoice_offset = random.randint(0, 29)
+                invoice_date = month_start + timedelta(days=invoice_offset)
                 if invoice_date > SIM_END_DATE:
                     continue
 
-                amount = max(200, np.random.normal(avg_invoice_value, avg_invoice_value * 0.4))
+                amount = max(
+                    200,
+                    np.random.normal(
+                        avg_invoice_value, avg_invoice_value * 0.4
+                    )
+                )
                 gst_rate = 0.05 if amount <= 1000 else 0.12
                 gst_amount = round(amount * gst_rate, 2)
 
@@ -139,14 +164,23 @@ def generate_invoices(shops_df, customers_df):
                 is_late = random.random() < profile["late_payment_rate"]
                 if is_late:
                     collection_days = int(np.random.normal(
-                        profile["avg_collection_days"] * 3, profile["avg_collection_days"]))
-                    collection_days = max(collection_days, profile["avg_collection_days"] + 5)
+                        profile["avg_collection_days"] * 3,
+                        profile["avg_collection_days"]
+                    ))
+                    collection_days = max(
+                        collection_days,
+                        profile["avg_collection_days"] + 5
+                    )
                 else:
                     collection_days = max(0, int(np.random.normal(
                         profile["avg_collection_days"], 2)))
 
                 payment_date = invoice_date + timedelta(days=collection_days)
-                is_paid = payment_date <= SIM_END_DATE and random.random() > 0.03  # 3% bad debt
+                # 3% bad debt
+                is_paid = (
+                    payment_date <= SIM_END_DATE
+                    and random.random() > 0.03
+                )
 
                 invoices.append({
                     "invoice_id": f"INV{invoice_counter:06d}",
@@ -176,12 +210,17 @@ def generate_gst_filings(shops_df):
         for month_offset in range(months_active):
             month_start = start_date + timedelta(days=month_offset * 30)
             filed_on_time = random.random() < profile["gst_ontime_rate"]
+            days_offset = (
+                random.randint(1, 25) if filed_on_time
+                else random.randint(26, 45)
+            )
             filings.append({
                 "shop_id": shop["shop_id"],
                 "period": month_start.strftime("%Y-%m"),
                 "filed_on_time": filed_on_time,
-                "filing_date": (month_start + timedelta(days=random.randint(1, 25) if filed_on_time
-                                                          else random.randint(26, 45))).date(),
+                "filing_date": (
+                    month_start + timedelta(days=days_offset)
+                ).date(),
             })
     return pd.DataFrame(filings)
 
@@ -199,18 +238,21 @@ def main():
     print("Generating GST filings...")
     gst_df = generate_gst_filings(shops_df)
 
-    # Save hidden health profile separately (for label generation in Phase 3 only —
-    # NOT to be used as a model feature, and not shipped with the "public" dataset)
+    # Save hidden health profile separately (for label generation in Phase 3
+    # only — NOT to be used as a model feature, and not shipped with the
+    # "public" dataset)
     shops_public = shops_df.drop(columns=["_health_profile"])
     shops_with_health = shops_df.copy()
 
     shops_public.to_csv(f"{OUTPUT_DIR}/shops.csv", index=False)
-    shops_with_health.to_csv(f"{OUTPUT_DIR}/_shops_with_health_profile.csv", index=False)
+    shops_with_health.to_csv(
+        f"{OUTPUT_DIR}/_shops_with_health_profile.csv", index=False
+    )
     customers_df.to_csv(f"{OUTPUT_DIR}/customers.csv", index=False)
     invoices_df.to_csv(f"{OUTPUT_DIR}/invoices.csv", index=False)
     gst_df.to_csv(f"{OUTPUT_DIR}/gst_filings.csv", index=False)
 
-    print(f"\nDone.")
+    print("\nDone.")
     print(f"  Shops:     {len(shops_df)}")
     print(f"  Customers: {len(customers_df)}")
     print(f"  Invoices:  {len(invoices_df)}")
