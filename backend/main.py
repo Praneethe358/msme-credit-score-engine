@@ -21,7 +21,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
-from feature_utils import compute_features_for_shop, FEATURE_COLS
+try:
+    from feature_utils import compute_features_for_shop, FEATURE_COLS
+except ImportError:
+    from backend.feature_utils import compute_features_for_shop, FEATURE_COLS
 
 app = FastAPI(title="MSME Credit Scoring API", version="1.0")
 

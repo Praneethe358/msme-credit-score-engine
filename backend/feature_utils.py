@@ -40,7 +40,7 @@ def compute_features_for_shop(invoices_df, customers_df, gst_df, shop_id="UPLOAD
     """
     invoices_df = invoices_df.copy()
     invoices_df["invoice_date"] = pd.to_datetime(invoices_df["invoice_date"])
-    invoices_df["month"] = invoices_df["invoice_date"].dt.to_period("M")
+    invoices_df["month"] = pd.DatetimeIndex(invoices_df["invoice_date"]).to_period("M")
 
     # --- revenue_cv + revenue_growth_slope ---
     monthly_revenue = (
